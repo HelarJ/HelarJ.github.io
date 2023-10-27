@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Testing dacs</title>
+</head>
+<body>
+
+<script>
+    var getBrandsConcatenated = (brands) => {
+        return brands.map(value => {
+            let brandEscaped = escapeDoubleQuoteAndBackslash(value.brand);
+            return "\"" + brandEscaped +"\";v=\"" + value.version + "\"";
+        }).join(", ");
+    }
+
+    var doubleQuoteEscape = (value) => {
+        return value.replace(/"/g, '\\"');
+    }
+
+    var backslashEscape = (value) => {
+        return value.replace(/\\/, "\\\\");
+    }
+
+    var escapeDoubleQuoteAndBackslash = (value) => {
+        if (typeof value === 'string' && value){
+            value = backslashEscape(value);
+            value = doubleQuoteEscape(value);
+        }
+
+        return value;
+    }
+
+    var isValidArray = (fullVersionList) => {
+        return typeof fullVersionList !== 'undefined' && Array.isArray(fullVersionList);
+    }
+
+    var getBrowserList = (fullVersionList, brands) => {
+        if (isValidArray(fullVersionList) ){
+            return getBrandsConcatenated(fullVersionList);
+        } else if (isValidArray(brands) ){
+            return getBrandsConcatenated(brands);
+        }
+    }
+
+    var getHintsValues = () => {
+        return [
+            'brands',
+            'mobile',
+            'platform',
+            'architecture',
+            'bitness',
+            'fullVersionList',
+            'model',
+            'platformVersion',
+            'wow64',
+        ];
+    }
+
+    function getPropertyQuoted(property) {
+        if (property !== undefined){
+            return "\"" + escapeDoubleQuoteAndBackslash(property) + "\"";
+        }
+
+        return property;
+    }
+
+    var clientHintHeaders = (new Promise(resolve => {
+        const navUAData = navigator && navigator.userAgentData
+        if (navUAData) {
+            navUAData.getHighEntropyValues(getHintsValues()).then(ua => {
+                const headers = {
+                    'User-Agent': navigator.userAgent,
+                    'Sec-CH-UA': getBrowserList(ua.brands),
+                    'Sec-CH-UA-Arch': getPropertyQuoted(ua.architecture),
+                    'Sec-CH-UA-Mobile': '?' + (ua.mobile ? '1' : '0'),
+                    'Sec-CH-UA-Model': getPropertyQuoted(ua.model),
+                    'Sec-CH-UA-Platform': getPropertyQuoted(ua.platform),
+                    'Sec-CH-UA-Platform-Version': getPropertyQuoted(ua.platformVersion),
+                    'Sec-CH-UA-Full-Version-List': getBrowserList(ua.fullVersionList, ua.brands),
+                    'Sec-CH-UA-Bitness': getPropertyQuoted(ua.bitness),
+                    'Sec-CH-UA-Wow64': '?' + (ua.wow64 ? '1' : '0')
+                };
+
+                resolve(headers);
+            })
+        } else if (navigator) {
+            resolve({
+                'User-Agent': navigator.userAgent,
+            });
+        } else {
+            resolve({});
+        }
+    }));
+
+</script>
+
+<div id="dacsdiv"></div>
+<div id="hints"></div>
+
+<script>
+    function dacsLoaded(){
+        let dacs = document.createElement("p");
+        dacs.textContent = DeviceAtlas.getPropertiesAsString();
+        document.getElementById("dacsdiv").appendChild(dacs)
+
+
+        let hints = document.createElement("p")
+        clientHintHeaders.then((data) => {
+            hints.textContent = JSON.stringify(data)
+            document.getElementById("hints").appendChild(hints)
+        })
+    }
+</script>
+
+
+<script type="text/javascript" src="https://cs.deviceatlas-cdn.com/dacs-lite.js" async onload="dacsLoaded()"></script>
+
+</body>
+</html>
